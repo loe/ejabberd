@@ -38,8 +38,9 @@
 
 -record(muc_message, {
     timestamp,
-    name,
     host,
+    name,
+    node,
     nick,
     action,
     data}).
@@ -50,13 +51,14 @@ start(Host, _Opts) ->
     [{odbc_host, Host},
       {attributes, record_info(fields, muc_message)},
       {type, bag},
-      {types, [{timestamp, datetime}, {host, binary}, {name, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]).
+      {types, [{timestamp, datetime}, {host, binary}, {name, binary}, {node, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]).
 
 stop(_Host) ->
   ?DEBUG("Stopping mod_muc_log", []),
   ok.
 
 add_to_log(_Host, Type, Data, Room, Opts) ->
+  ?DEBUG("LOGGING DATA: ~n => Type: ~p ~n => Data: ~p ~n => Room: ~p ~n => Opts ~p ~n", [Type, Data, Room, Opts]),
   case catch add_to_log2(Type, Data, Room, Opts) of
     {'EXIT', Reason} ->
       ?ERROR_MSG("~p", [Reason]);
@@ -64,50 +66,46 @@ add_to_log(_Host, Type, Data, Room, Opts) ->
       ok
   end.
 
-add_to_log2(text, {Nick, Packet}, Room, Opts) ->
+add_to_log2(text, {JID, Nick, Packet}, Room, Opts) ->
+  From = exmpp_xml:get_element(Packet, 'from'),
   case {exmpp_xml:get_element(Packet, 'subject'),
       exmpp_xml:get_element(Packet, 'body')} of
     {'undefined', 'undefined'} ->
       ok;
     {'undefined', SubEl} ->
-      Message = {body, exmpp_xml:get_cdata_as_list(SubEl)},
-      add_message_to_log(binary_to_list(Nick), Message, Room, Opts);
+      Message = {body, exmpp_xml:get_cdata(SubEl)},
+      add_message_to_log(JID, Nick, Message, Room, Opts);
     {SubEl, _} ->
-      Message = {subject, exmpp_xml:get_cdata_as_list(SubEl)},
-      add_message_to_log(binary_to_list(Nick), Message, Room, Opts)
+      Message = {subject, exmpp_xml:get_cdata(SubEl)},
+      add_message_to_log(JID, Nick, Message, Room, Opts)
   end;
 
 add_to_log2(roomconfig_change, _Occupants, Room, Opts) ->
-  add_message_to_log("", roomconfig_change, Room, Opts);
+  add_message_to_log(<<"">>, <<"">>, roomconfig_change, Room, Opts);
 
 add_to_log2(roomconfig_change_enabledlogging, Occupants, Room, Opts) ->
-  add_message_to_log("", {roomconfig_change, Occupants}, Room, Opts);
+  add_message_to_log(<<"">>, <<"">>, {roomconfig_change, Occupants}, Room, Opts);
 
 add_to_log2(room_existence, NewStatus, Room, Opts) ->
-  add_message_to_log("", {room_existence, NewStatus}, Room, Opts);
+  add_message_to_log(<<"">>, <<"">>, {room_existence, NewStatus}, Room, Opts);
 
-add_to_log2(nickchange, {OldNick, NewNick}, Room, Opts) ->
-  add_message_to_log(binary_to_list(NewNick), {nickchange, binary_to_list(OldNick)}, Room, Opts);
+add_to_log2(nickchange, {JID, OldNick, NewNick}, Room, Opts) ->
+  add_message_to_log(JID, NewNick, {nickchange, OldNick}, Room, Opts);
 
-add_to_log2(join, Nick, Room, Opts) ->
-  add_message_to_log(binary_to_list(Nick), join, Room, Opts);
+add_to_log2(join, {JID, Nick}, Room, Opts) ->
+  add_message_to_log(JID, Nick, join, Room, Opts);
 
-add_to_log2(leave, {Nick, Reason}, Room, Opts) ->
-  case binary_to_list(Reason) of
-    "" -> add_message_to_log(binary_to_list(Nick), leave, Room, Opts);
-    R -> add_message_to_log(binary_to_list(Nick), {leave, R}, Room, Opts)
-  end;
+add_to_log2(leave, {JID, Nick, Reason}, Room, Opts) ->
+  add_message_to_log(JID, Nick, {leave, Reason}, Room, Opts);
 
-add_to_log2(kickban, {Nick, Reason, Code}, Room, Opts) ->
-  add_message_to_log(binary_to_list(Nick), {kickban, Code, binary_to_list(Reason)}, Room, Opts).
+add_to_log2(kickban, {JID, Nick, Reason, Code}, Room, Opts) ->
+  add_message_to_log(JID, Nick, {kickban, Code, Reason}, Room, Opts).
 
 
-add_message_to_log(Nick, Message, RoomJID, _Opts) ->
+add_message_to_log(JID, Nick, Message, RoomJID, _Opts) ->
   {Action, Data} = case Message of
     join ->
       {join, ""};
-    leave ->
-      {leave, ""};
     {leave, Reason} ->
       {leave, Reason};
     {kickban, "301", ""} ->
@@ -134,11 +132,12 @@ add_message_to_log(Nick, Message, RoomJID, _Opts) ->
       {room_existence, RoomExistence}
   end,
   Host = exmpp_jid:domain_as_list(RoomJID),
-  Room = exmpp_jid:node_as_list(RoomJID),
+  Name = exmpp_jid:node_as_list(RoomJID),
+  Node = exmpp_jid:node_as_list(JID),
   %% YYYY-MM-DD HH:MM:SS format.
   {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
   Timestamp = io_lib:format("~p-~p-~p ~p:~p:~p", [Year, Month, Day, Hour, Minute, Second]),
-  Query = erlsql:sql({insert, muc_message, [{host, Host}, {name, Room}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
+  Query = erlsql:sql({insert, muc_message, [{host, Host}, {name, Name}, {node, Node}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
   ejabberd_odbc:sql_query(Host, Query).
 
 %% TODO: Factor out calling code.

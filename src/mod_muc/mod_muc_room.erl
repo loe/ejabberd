@@ -1470,7 +1470,7 @@ add_online_user(JID, Nick, Role, StateData) ->
 			      nick = Nick,
 			      role = Role},
 			StateData#state.users),
-    add_to_log(join, Nick, StateData),
+    add_to_log(join, {JID, Nick}, StateData),
     tab_add_online_user(JID, StateData),
     StateData#state{users = Users}.
 
@@ -1481,7 +1481,7 @@ remove_online_user(JID, StateData, Reason) ->
     LJID = jlib:short_prepd_jid(JID),
     {ok, #user{nick = Nick}} =
     	?DICT:find(LJID, StateData#state.users),
-    add_to_log(leave, {Nick, Reason}, StateData),
+    add_to_log(leave, {JID, Nick, Reason}, StateData),
     tab_remove_online_user(JID, StateData),
     Users = ?DICT:erase(LJID, StateData#state.users),
     StateData#state{users = Users}.
@@ -2034,7 +2034,7 @@ change_nick(JID, Nick, StateData) ->
 	   end, StateData#state.users),
     NewStateData = StateData#state{users = Users},
     send_nick_changing(JID, OldNick, NewStateData),
-    add_to_log(nickchange, {OldNick, Nick}, StateData),
+    add_to_log(nickchange, {JID, OldNick, Nick}, StateData),
     NewStateData.
 
 send_nick_changing(JID, OldNick, StateData) ->
@@ -2154,7 +2154,7 @@ add_message_to_history(FromNick, FromJID, Packet, StateData) ->
     Size = erlang:iolist_size(exmpp_xml:document_to_iolist(SPacket)),
     Q1 = lqueue_in({FromNick, TSPacket, HaveSubject, TimeStamp, Size},
 		   StateData#state.history),
-    add_to_log(text, {FromNick, Packet}, StateData),
+    add_to_log(text, {FromJID, FromNick, Packet}, StateData),
     StateData#state{history = Q1}.
 
 send_history(JID, Shift, StateData) ->
@@ -2754,7 +2754,7 @@ send_kickban_presence(JID, Reason, Code, NewAffiliation, StateData) ->
     lists:foreach(fun(J) ->
 			  {ok, #user{nick = Nick}} =
 			      ?DICT:find(J, StateData#state.users),
-			  add_to_log(kickban, {Nick, Reason, Code}, StateData),
+			  add_to_log(kickban, {J, Nick, Reason, Code}, StateData),
 			  tab_remove_online_user(J, StateData),
 			  send_kickban_presence1(J, Reason, Code, NewAffiliation, StateData)
 		  end, LJIDs).
