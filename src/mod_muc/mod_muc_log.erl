@@ -37,22 +37,23 @@
 -include_lib("exmpp/include/exmpp.hrl").
 
 -record(muc_message, {
+    timestamp,
+    name,
     host,
-    room,
     nick,
     action,
-    data,
-    timestamp}).
+    data}).
 
 start(Host, _Opts) ->
-      gen_storage:create_table(odbc, Host, muc_message,
-        [{odbc_host, Host},
-        {attributes, record_info(fields, muc_message)},
-        {type, bag},
-        {types, [{timestamp, datetime}, {host, binary}, {room, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]),
-  ok.
+  ?DEBUG("Starting mod_muc_log", []),
+  gen_storage:create_table(odbc, Host, muc_message,
+    [{odbc_host, Host},
+      {attributes, record_info(fields, muc_message)},
+      {type, bag},
+      {types, [{timestamp, datetime}, {host, binary}, {name, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]).
 
 stop(_Host) ->
+  ?DEBUG("Stopping mod_muc_log", []),
   ok.
 
 add_to_log(_Host, Type, Data, Room, Opts) ->
@@ -137,7 +138,7 @@ add_message_to_log(Nick, Message, RoomJID, _Opts) ->
   %% YYYY-MM-DD HH:MM:SS format.
   {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
   Timestamp = io_lib:format("~p-~p-~p ~p:~p:~p", [Year, Month, Day, Hour, Minute, Second]),
-  Query = erlsql:sql({insert, muc_message, [{host, Host}, {room, Room}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
+  Query = erlsql:sql({insert, muc_message, [{host, Host}, {name, Room}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
   ejabberd_odbc:sql_query(Host, Query).
 
 %% TODO: Factor out calling code.
