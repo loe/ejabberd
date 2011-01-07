@@ -36,14 +36,6 @@
 -include("ejabberd.hrl").
 -include_lib("exmpp/include/exmpp.hrl").
 
--record(message, {
-    host,
-    room,
-    nick,
-    action,
-    data,
-    timestamp}).
-
 start(_Host, _Opts) ->
   ok.
 
@@ -51,7 +43,6 @@ stop(_Host) ->
   ok.
 
 add_to_log(_Host, Type, Data, Room, Opts) ->
-  ?DEBUG("Calling add_to_log", []),
   case catch add_to_log2(Type, Data, Room, Opts) of
     {'EXIT', Reason} ->
       ?ERROR_MSG("~p", [Reason]);
@@ -128,16 +119,13 @@ add_message_to_log(Nick, Message, RoomJID, _Opts) ->
     {room_existence, RoomExistence} ->
       {room_existence, RoomExistence}
   end,
-  MessageToLog = #message{host = exmpp_jid:domain_as_list(RoomJID),
-    room = exmpp_jid:node_as_list(RoomJID),
-    nick = Nick,
-    action = Action,
-    data = Data,
-    timestamp = now()
-  },
-
-  ?DEBUG("Writing to storage: ~p ~n", [MessageToLog]),
-  ok.
+  Host = exmpp_jid:domain_as_list(RoomJID),
+  Room = exmpp_jid:node_as_list(RoomJID),
+  %% YYYY-MM-DD HH:MM:SS format.
+  {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
+  Timestamp = io_lib:format("~p-~p-~p ~p:~p:~p", [Year, Month, Day, Hour, Minute, Second]),
+  Query = erlsql:sql({insert, muc_message, [{host, Host}, {room, Room}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
+  ejabberd_odbc:sql_query(Host, Query).
 
 %% TODO: Factor out calling code.
 check_access_log(_, _) ->
