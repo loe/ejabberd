@@ -36,7 +36,20 @@
 -include("ejabberd.hrl").
 -include_lib("exmpp/include/exmpp.hrl").
 
-start(_Host, _Opts) ->
+-record(muc_message, {
+    host,
+    room,
+    nick,
+    action,
+    data,
+    timestamp}).
+
+start(Host, _Opts) ->
+      gen_storage:create_table(odbc, Host, muc_message,
+        [{odbc_host, Host},
+        {attributes, record_info(fields, muc_message)},
+        {type, bag},
+        {types, [{timestamp, datetime}, {host, binary}, {room, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]),
   ok.
 
 stop(_Host) ->
