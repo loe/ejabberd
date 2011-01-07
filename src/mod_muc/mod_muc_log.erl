@@ -40,7 +40,7 @@
     timestamp,
     host,
     name,
-    node,
+    jid,
     nick,
     action,
     data}).
@@ -51,7 +51,7 @@ start(Host, _Opts) ->
     [{odbc_host, Host},
       {attributes, record_info(fields, muc_message)},
       {type, bag},
-      {types, [{timestamp, datetime}, {host, binary}, {name, binary}, {node, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]).
+      {types, [{timestamp, datetime}, {host, binary}, {name, binary}, {jid, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]).
 
 stop(_Host) ->
   ?DEBUG("Stopping mod_muc_log", []),
@@ -133,11 +133,11 @@ add_message_to_log(JID, Nick, Message, RoomJID, _Opts) ->
   end,
   Host = exmpp_jid:domain_as_list(RoomJID),
   Name = exmpp_jid:node_as_list(RoomJID),
-  Node = exmpp_jid:node_as_list(JID),
+  LJID = exmpp_jid:bare_to_list(JID),
   %% YYYY-MM-DD HH:MM:SS format.
   {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
   Timestamp = io_lib:format("~p-~p-~p ~p:~p:~p", [Year, Month, Day, Hour, Minute, Second]),
-  Query = erlsql:sql({insert, muc_message, [{host, Host}, {name, Name}, {node, Node}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
+  Query = erlsql:sql({insert, muc_message, [{host, Host}, {name, Name}, {jid, LJID}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
   ejabberd_odbc:sql_query(Host, Query).
 
 %% TODO: Factor out calling code.
