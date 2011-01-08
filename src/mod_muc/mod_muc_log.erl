@@ -47,7 +47,7 @@
 
 start(Host, _Opts) ->
   ?DEBUG("Starting mod_muc_log", []),
-  gen_storage:create_table(odbc, Host, muc_message,
+  gen_storage:create_table(odbc, Host, muc_messages,
     [{odbc_host, Host},
       {attributes, record_info(fields, muc_message)},
       {type, bag},
@@ -67,7 +67,6 @@ add_to_log(_Host, Type, Data, Room, Opts) ->
   end.
 
 add_to_log2(text, {JID, Nick, Packet}, Room, Opts) ->
-  From = exmpp_xml:get_element(Packet, 'from'),
   case {exmpp_xml:get_element(Packet, 'subject'),
       exmpp_xml:get_element(Packet, 'body')} of
     {'undefined', 'undefined'} ->
@@ -137,7 +136,7 @@ add_message_to_log(JID, Nick, Message, RoomJID, _Opts) ->
   %% YYYY-MM-DD HH:MM:SS format.
   {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
   Timestamp = io_lib:format("~p-~p-~p ~p:~p:~p", [Year, Month, Day, Hour, Minute, Second]),
-  Query = erlsql:sql({insert, muc_message, [{host, Host}, {name, Name}, {jid, LJID}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
+  Query = erlsql:sql({insert, muc_messages, [{host, Host}, {name, Name}, {jid, LJID}, {nick, Nick}, {action, Action}, {data, Data}, {timestamp, Timestamp}]}),
   ejabberd_odbc:sql_query(Host, Query).
 
 %% TODO: Factor out calling code.
