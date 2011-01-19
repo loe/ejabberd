@@ -132,7 +132,13 @@ add_message_to_log(JID, Nick, Message, RoomJID, _Opts) ->
   end,
   Host = exmpp_jid:domain_as_list(RoomJID),
   Name = exmpp_jid:node_as_list(RoomJID),
-  LJID = exmpp_jid:to_list(JID),
+  %% JID is not always present (Room Creation/Destruction)
+  LJID = case exmpp_jid:is_jid(JID) of
+    true ->
+      exmpp_jid:to_list(JID);
+    false ->
+      ""
+  end,
   %% YYYY-MM-DD HH:MM:SS format.
   {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
   Timestamp = io_lib:format("~p-~p-~p ~p:~p:~p", [Year, Month, Day, Hour, Minute, Second]),
