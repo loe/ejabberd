@@ -1,8 +1,8 @@
 %%%----------------------------------------------------------------------
-%%% File    : mod_muc_log.erl
-%%% Author  : Badlop@process-one.net
+%%% File    : mod_muc_log_sql.erl
+%%% Author  : andrew@andrewloe.com
 %%% Purpose : MUC room logging
-%%% Created : 12 Mar 2006 by Alexey Shchepin <alexey@process-one.net>
+%%% Created : 1 Jan 2011 by W. Andrew Loe III <andrew@andrewloe.com>
 %%%
 %%%
 %%% ejabberd, Copyright (C) 2002-2011   ProcessOne
@@ -24,7 +24,7 @@
 %%%
 %%%----------------------------------------------------------------------
 
--module(mod_muc_log).
+-module(mod_muc_log_sql).
 
 -behaviour(gen_mod).
 
@@ -46,7 +46,7 @@
     data}).
 
 start(Host, _Opts) ->
-  ?DEBUG("Starting mod_muc_log", []),
+  ?DEBUG("Starting mod_muc_log_sql", []),
   gen_storage:create_table(odbc, Host, muc_messages,
     [{odbc_host, Host},
       {attributes, record_info(fields, muc_message)},
@@ -54,7 +54,7 @@ start(Host, _Opts) ->
       {types, [{timestamp, datetime}, {host, binary}, {name, binary}, {jid, binary}, {nick, binary}, {action, binary}, {data, mediumtext}]}]).
 
 stop(_Host) ->
-  ?DEBUG("Stopping mod_muc_log", []),
+  ?DEBUG("Stopping mod_muc_log_sql", []),
   ok.
 
 add_to_log(_Host, Type, Data, Room, Opts) ->
